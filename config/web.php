@@ -12,6 +12,7 @@ $config = [
         '@npm'   => '@vendor/npm-asset',
     ],
     'components' => [
+        'authManager' => ['class' => 'yii\rbac\PhpManager'], // или 'yii\rbac\PhpManager'.
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => 'qweasd123',
@@ -49,7 +50,11 @@ $config = [
             'rules' => [
             ],
         ],
-
+    ],
+    'modules' => [
+        'admin' => [
+            'class' => 'app\modules\admin',
+        ],
     ],
     'params' => $params,
 ];

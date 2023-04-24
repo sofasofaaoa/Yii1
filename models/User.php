@@ -2,103 +2,125 @@
 
 namespace app\models;
 
-class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
+use Yii;
+use yii\web\IdentityInterface;
+
+/**
+ * This is the model class for table "user".
+ *
+ * @property int $id
+ * @property string $fio
+ * @property string $email
+ * @property string $login
+ * @property string $password
+ * @property string $image
+ * @property int $role
+ */
+class User extends \yii\db\ActiveRecord implements IdentityInterface
 {
-    public $id;
-    public $username;
-    public $password;
-    public $authKey;
-    public $accessToken;
+    /**
+     * {@inheritdoc}
+     */
 
-    private static $users = [
-        '100' => [
-            'id' => '100',
-            'username' => 'admin',
-            'password' => 'admin',
-            'authKey' => 'test100key',
-            'accessToken' => '100-token',
-        ],
-        '101' => [
-            'id' => '101',
-            'username' => 'demo',
-            'password' => 'demo',
-            'authKey' => 'test101key',
-            'accessToken' => '101-token',
-        ],
-    ];
+    public $repeat_password;
+    public $file;
+    const ROLE_ADMIN = 1;
+    const ROLE_USER = 0;
 
+
+    public static function tableName()
+    {
+        return 'user';
+    }
 
     /**
      * {@inheritdoc}
      */
+    public function rules()
+    {
+        return [
+            [['fio', 'email', 'login', 'password', 'repeat_password'], 'required'],
+            ['role', 'in', 'range' => [self::ROLE_USER, self::ROLE_ADMIN]],
+            [['fio', 'email', 'login'], 'string', 'max' => 255],
+            [['password'], 'string', 'max' => 255],
+            [['image'], 'string', 'max' => 255],
+            [['fio'], 'match', 'pattern' => '/^[а-яА-ЯёЁ ]+$/u'],
+            [['email'], 'email'],
+            [['login'], 'unique'],
+            [
+                ['password'],'match',
+                'pattern'=> '/^(?=.*[a-z])(?=.*[A-Z])[a-zA-Z]{6,}$/u'
+            ],
+            [['repeat_password'], 'compare', 'compareAttribute' => 'password'],
+            [
+                ['file'], 'file',
+                'skipOnEmpty' => false,
+                'extensions' => 'jpg, png, jpeg, bmp', 'maxSize' => 1024 * 1024 * 10
+            ]
+        ];
+
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => 'ID',
+            'fio' => 'ФИО',
+            'email' => 'Почта',
+            'login' => 'Логин',
+            'password' => 'Пароль',
+            'image' => 'Аватар',
+        ];
+    }
+
+    public function upload()
+    {
+        if (!$this->file)
+            return false;
+        $name = '/web/uploads' . time() . rand(0, 100) . '.' . $this->file->extension;
+        $filename = Yii::getAlias('@webroot') . $name;
+        $url = Yii::getAlias('@web') . $name;
+        if ($this->file->saveAs($filename))
+            return $url;
+        return false;
+    }
+
+    public function validatePassword($password)
+    {
+        return $this->password == $password;
+    }
+
     public static function findIdentity($id)
     {
-        return isset(self::$users[$id]) ? new static(self::$users[$id]) : null;
+        return static::findOne($id);
     }
-
-    /**
-     * {@inheritdoc}
-     */
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        foreach (self::$users as $user) {
-            if ($user['accessToken'] === $token) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        return static::findOne(['access_token' => $token]);
     }
-
-    /**
-     * Finds user by username
-     *
-     * @param string $username
-     * @return static|null
-     */
-    public static function findByUsername($username)
-    {
-        foreach (self::$users as $user) {
-            if (strcasecmp($user['username'], $username) === 0) {
-                return new static($user);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function getId()
     {
         return $this->id;
     }
-
-    /**
-     * {@inheritdoc}
-     */
     public function getAuthKey()
     {
-        return $this->authKey;
-    }
 
-    /**
-     * {@inheritdoc}
-     */
+    }
     public function validateAuthKey($authKey)
     {
-        return $this->authKey === $authKey;
+
     }
 
-    /**
-     * Validates password
-     *
-     * @param string $password password to validate
-     * @return bool if password provided is valid for current user
-     */
-    public function validatePassword($password)
+    public static function isUserAdmin($login)
     {
-        return $this->password === $password;
+        if (static::findOne(['login' => $login, 'role' => self::ROLE_ADMIN]))
+        {
+            return true;
+        } else {
+            return false;
+        }
     }
 }

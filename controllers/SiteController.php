@@ -9,6 +9,8 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
+use yii\web\UploadedFile;
+use yii\widgets\ActiveForm;
 
 class SiteController extends Controller
 {
@@ -129,5 +131,30 @@ class SiteController extends Controller
     public function actionHello($message = 'Hello')
     {
         return $this->render('say', ['message' => $message]);
+    }
+
+    public function actionRegister()
+    {
+        $model = new \app\models\User();
+
+        if (Yii::$app->request->isAjax && $model->load(Yii::$app->request->post())){
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            return ActiveForm::validate($model);
+        }
+
+        if ($model->load(Yii::$app->request->post())) {
+            $model->file = UploadedFile::getInstance($model, 'file');
+            if ($model->validate() && $uploadedFileName = $model->upload()) {
+                $model->image = $uploadedFileName;
+                $model->role = 0;
+                $model->save(false);
+                Yii::$app->session->setFlash('success', 'Вы успешно зарегистрированы');
+                return $this->goHome();
+            }
+        }
+
+        return $this->render('register', [
+            'model' => $model,
+        ]);
     }
 }
